@@ -1,4 +1,4 @@
-from homeassistant.components.sensor import SensorEntity, SensorDeviceClass
+from homeassistant.components.sensor import SensorEntity, SensorDeviceClass, SensorStateClass
 from homeassistant.const import UnitOfElectricPotential, UnitOfPower, UnitOfTemperature, EntityCategory, \
     UnitOfElectricCurrent, UnitOfFrequency, UnitOfApparentPower
 from homeassistant.core import callback
@@ -88,6 +88,7 @@ class DirectWattSensorBase(DirectTypedSensorBase):
     _attr_native_unit_of_measurement = UnitOfPower.WATT
     _attr_suggested_display_precision = 0
     _sensor_option_display_precision = 0
+    _attr_state_class = SensorStateClass.MEASUREMENT
 
 
 class DirectTemperatureSensorBase(DirectTypedSensorBase):
@@ -97,6 +98,7 @@ class DirectTemperatureSensorBase(DirectTypedSensorBase):
     _attr_entity_category = EntityCategory.DIAGNOSTIC
     _attr_suggested_display_precision = 0
     _sensor_option_display_precision = 0
+    _attr_state_class = SensorStateClass.MEASUREMENT
 
 
 class DirectVoltageSensorBase(DirectTypedSensorBase):
@@ -105,6 +107,7 @@ class DirectVoltageSensorBase(DirectTypedSensorBase):
     _attr_native_unit_of_measurement = UnitOfElectricPotential.VOLT
     _attr_suggested_display_precision = 1
     _sensor_option_display_precision = 1
+    _attr_state_class = SensorStateClass.MEASUREMENT
 
 
 class DirectCurrentSensorBase(DirectTypedSensorBase):
@@ -115,6 +118,7 @@ class DirectCurrentSensorBase(DirectTypedSensorBase):
     _attr_native_unit_of_measurement = UnitOfElectricCurrent.AMPERE
     _attr_suggested_display_precision = 0
     _sensor_option_display_precision = 0
+    _attr_state_class = SensorStateClass.MEASUREMENT
 
 
 class DirectApparentPowerSensorBase(DirectTypedSensorBase):
@@ -123,6 +127,7 @@ class DirectApparentPowerSensorBase(DirectTypedSensorBase):
     _attr_native_unit_of_measurement = UnitOfApparentPower.VOLT_AMPERE
     _attr_suggested_display_precision = 0
     _sensor_option_display_precision = 0
+    _attr_state_class = SensorStateClass.MEASUREMENT
 
 
 class DirectBatteryCapacitySensorBase(DirectTypedSensorBase):
@@ -130,6 +135,7 @@ class DirectBatteryCapacitySensorBase(DirectTypedSensorBase):
     _attr_native_unit_of_measurement = "Ah"
     _attr_suggested_display_precision = 0
     _sensor_option_display_precision = 0
+    _attr_state_class = SensorStateClass.MEASUREMENT
 
 
 class DirectFrequencySensorBase(DirectTypedSensorBase):
@@ -138,6 +144,7 @@ class DirectFrequencySensorBase(DirectTypedSensorBase):
     _attr_native_unit_of_measurement = UnitOfFrequency.HERTZ
     _attr_suggested_display_precision = 1
     _sensor_option_display_precision = 1
+    _attr_state_class = SensorStateClass.MEASUREMENT
 
 
 class DirectEnumSensorBase(DirectTypedSensorBase):
@@ -304,6 +311,7 @@ class DirectGridFrequencySensor(DirectTypedSensorBase):
     _attr_native_unit_of_measurement = "Hz"
     _attr_suggested_display_precision = 1
     _sensor_option_display_precision = 1
+    _attr_state_class = SensorStateClass.MEASUREMENT
 
     def __init__(self, inverter_device, coordinator):
         super().__init__(inverter_device, coordinator, "qpigs", "grid_frequency", "grid_freq", "Grid Frequency")
@@ -321,6 +329,7 @@ class DirectACOutputFrequencySensor(DirectTypedSensorBase):
     _attr_native_unit_of_measurement = "Hz"
     _attr_suggested_display_precision = 1
     _sensor_option_display_precision = 1
+    _attr_state_class = SensorStateClass.MEASUREMENT
 
     def __init__(self, inverter_device, coordinator):
         super().__init__(inverter_device, coordinator, "qpigs", "ac_output_frequency", "ac_output_freq",
@@ -339,6 +348,7 @@ class DirectLoadPercentSensor(DirectTypedSensorBase):
     _attr_native_unit_of_measurement = "%"
     _attr_suggested_display_precision = 0
     _sensor_option_display_precision = 0
+    _attr_state_class = SensorStateClass.MEASUREMENT
 
     def __init__(self, inverter_device, coordinator):
         super().__init__(inverter_device, coordinator, "qpigs", "load_percent", "load_percent", "Load Percent")
@@ -366,6 +376,7 @@ class DirectBatteryCapacitySensor(DirectTypedSensorBase):
     _attr_native_unit_of_measurement = "%"
     _attr_suggested_display_precision = 0
     _sensor_option_display_precision = 0
+    _attr_state_class = SensorStateClass.MEASUREMENT
 
     def __init__(self, inverter_device, coordinator):
         super().__init__(inverter_device, coordinator, "qpigs", "battery_capacity", "battery_capacity",
