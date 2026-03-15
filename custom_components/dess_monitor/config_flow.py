@@ -10,7 +10,7 @@ from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.selector import selector
 
 from .api import auth_user, get_devices
-from .const import DOMAIN  # pylint:disable=unused-import
+from .const import DOMAIN, CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL  # pylint:disable=unused-import
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -33,6 +33,7 @@ DATA_SCHEMA = vol.Schema({
     vol.Optional("dynamic_settings", default=False): bool,
     vol.Optional("raw_sensors", default=False): bool,
     vol.Optional("direct_request_protocol", default=False): bool,
+    vol.Optional(CONF_SCAN_INTERVAL, default=DEFAULT_SCAN_INTERVAL): int,
 })
 
 
@@ -95,6 +96,7 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         self._dynamic_settings = False
         self._direct_request_protocol = False
         self._raw_sensors = False
+        self._scan_interval = DEFAULT_SCAN_INTERVAL
         self._username = None
         self._password_hash = None
         self._info = None
@@ -117,6 +119,7 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 self._dynamic_settings = user_input['dynamic_settings']
                 self._direct_request_protocol = user_input['direct_request_protocol']
                 self._raw_sensors = user_input['raw_sensors']
+                self._scan_interval = user_input.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL)
                 devices = await get_devices(info['auth']['token'], info['auth']['secret'])
                 active_devices = [device for device in devices if device['status'] != 1]
                 self._devices = active_devices
@@ -156,6 +159,7 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     'direct_request_protocol': self._direct_request_protocol,
                     'devices': devices,
                     'raw_sensors': self._raw_sensors,
+                    CONF_SCAN_INTERVAL: self._scan_interval,
                 })
 
         return self.async_show_form(
@@ -223,6 +227,8 @@ class OptionsFlow(config_entries.OptionsFlow):
                              default=self._config_entry.options.get('raw_sensors', False)): bool,
                 vol.Optional("direct_request_protocol",
                              default=self._config_entry.options.get('direct_request_protocol', False)): bool,
+                vol.Optional(CONF_SCAN_INTERVAL,
+                             default=self._config_entry.options.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL)): int,
             })
         )
 

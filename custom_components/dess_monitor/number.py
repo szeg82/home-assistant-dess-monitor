@@ -10,7 +10,7 @@ from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from custom_components.dess_monitor import MainCoordinator, HubConfigEntry
 from custom_components.dess_monitor.api import set_ctrl_device_param, get_device_ctrl_value
-from custom_components.dess_monitor.const import DOMAIN
+from custom_components.dess_monitor.const import DOMAIN, CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL
 from custom_components.dess_monitor.hub import InverterDevice
 from custom_components.dess_monitor.util import resolve_number_with_unit
 
@@ -121,6 +121,10 @@ class InverterDynamicSettingNumber(NumberBase):
         self._attr_native_step = 0.1
         self._attr_mode = NumberMode.BOX
 
+    @property
+    def _scan_interval_seconds(self):
+        return self.coordinator.config_entry.options.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL)
+
     # async def async_added_to_hass(self) -> None:
     #     """Handle entity which will be added."""
     #
@@ -134,11 +138,9 @@ class InverterDynamicSettingNumber(NumberBase):
 
     async def async_update(self):
         now = int(datetime.now().timestamp())
-        if self._last_updated is not None and now - self._last_updated > 300:
-            pass
-        else:
-            if self._last_updated is None:
-                pass
+        if self._last_updated is not None and now - self._last_updated < self._scan_interval_seconds:
+            return
+
         if self.coordinator.auth['token'] is not None:
             response = await get_device_ctrl_value(self.coordinator.auth['token'],
                                                    self.coordinator.auth['secret'],
