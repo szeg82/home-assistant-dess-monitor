@@ -97,18 +97,55 @@ def safe_float(val: Optional[str], default: float = 0.0) -> float:
         return default
 
 
+def build_data_index(data: Dict[str, Any]) -> None:
+    if not isinstance(data, dict):
+        return
+    if "_dess_monitor_index" in data:
+        return
+
+    index = {"id": {}, "par": {}}
+
+    def _traverse(current):
+        if isinstance(current, dict):
+            if "id" in current:
+                k = str(current["id"]).lower()
+                if k not in index["id"]:
+                    index["id"][k] = current
+            if "par" in current:
+                k = str(current["par"]).lower()
+                if k not in index["par"]:
+                    index["par"][k] = current
+
+            for v in current.values():
+                if isinstance(v, (dict, list)):
+                    _traverse(v)
+        elif isinstance(current, list):
+            for item in current:
+                if isinstance(item, (dict, list)):
+                    _traverse(item)
+
+    _traverse(data)
+    data["_dess_monitor_index"] = index
+
+
 def get_sensor_value_simple(
         name: str,
         data: Dict[str, Any],
         device_data: Dict[str, Any]
 ) -> Optional[str]:
     keys = SENSOR_KEYS_MAP.get(name, [])
+    
+    build_data_index(data)
+    index = data.get("_dess_monitor_index", {"id": {}, "par": {}})
 
     for key in keys:
-        res = resolve_param(data, {"id": key}, case_insensitive=True)
+        query_key = str(key).lower()
+        
+        res = index["id"].get(query_key)
         if res:
             return res.get("val")
-        res = resolve_param(data, {"par": key}, case_insensitive=True)
+            
+        res = index["par"].get(query_key)
         if res:
             if res.get("status") != 0:
                 return res.get("val")
@@ -122,18 +159,25 @@ def get_sensor_value_simple_entry(
 ) -> tuple[str, Any, Any] | None:
     """
     Ищет значение сенсора по ключам из SENSOR_KEYS_MAP[name].
-    Возвращает кортеж (имя_поля, значение), где имя_поля — "id" или "par".
+    Возвращает кортеж (имя_поля, значение, юнит), где имя_поля — "id" или "par".
     """
     keys = SENSOR_KEYS_MAP.get(name, [])
+    
+    build_data_index(data)
+    index = data.get("_dess_monitor_index", {"id": {}, "par": {}})
+    
     for key in keys:
-        res = resolve_param(data, {"id": key}, case_insensitive=True)
+        query_key = str(key).lower()
+        
+        res = index["id"].get(query_key)
         if res:
-            return res.get("id"), res.get("val"), res.get("unit", None)
-        res = resolve_param(data, {"par": key}, case_insensitive=True)
+            return res.get("id"), res.get("val"), res.get("unit")
+            
+        res = index["par"].get(query_key)
         if res:
             if res.get("status") == 0:
                 return None
-            return res.get("par"), res.get("val"), res.get("unit", None)
+            return res.get("par"), res.get("val"), res.get("unit")
     return None
 
 

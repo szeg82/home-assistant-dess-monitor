@@ -117,7 +117,7 @@ class MainCoordinator(DataUpdateCoordinator):
                     ctrl_fields = await safe_call(get_device_ctrl_fields(token, secret, device), default={'field': []})
                     output_priority = await safe_call(get_inverter_output_priority(token, secret, ctrl_fields, device), default={})
 
-                    return pn, {
+                    device_data_dict = {
                         'last_data': last_data,
                         'energy_flow': energy_flow,
                         'pars': pars,
@@ -127,6 +127,10 @@ class MainCoordinator(DataUpdateCoordinator):
                             'output_priority': output_priority,
                         }
                     }
+                    
+                    await self.hass.async_add_executor_job(build_data_index, device_data_dict)
+                    
+                    return pn, device_data_dict
 
                 tasks = [build_device_data(device) for device in self.devices]
 

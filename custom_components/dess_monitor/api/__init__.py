@@ -18,6 +18,25 @@ headers = {
 
 api_semaphore = asyncio.Semaphore(10)
 
+async def _request_with_backoff(session: aiohttp.ClientSession, url: str, headers: dict, max_retries=4):
+    backoff = 2
+    for attempt in range(max_retries):
+        try:
+            response = await session.get(url, headers=headers, timeout=aiohttp.ClientTimeout(total=15))
+            if response.status in (404, 500, 502, 503, 504):
+                if attempt == max_retries - 1:
+                    response.raise_for_status()
+                await asyncio.sleep(backoff ** attempt)
+                continue
+            response.raise_for_status()
+            json_resp = await response.json()
+            return json_resp
+        except (aiohttp.ClientError, asyncio.TimeoutError) as e:
+            if attempt == max_retries - 1:
+                raise e
+            await asyncio.sleep(backoff ** attempt)
+
+
 
 async def auth_user(username: str, password_hash: str):
     async with aiohttp.ClientSession() as session:
@@ -37,13 +56,13 @@ async def auth_user(username: str, password_hash: str):
             **params,
         }
         url = f'https://{DOMAIN_BASE_URL}/public/?{urllib.parse.urlencode(payload, doseq=False, safe="@")}'
-        response = (await (await session.get(url, headers=headers)).json())
-        if response['err'] != 0:
-            print(f'Error {response["err"]} while authenticating user: {response["desc"]}')
+        response = await _request_with_backoff(session, url, headers)
+        if response.get('err', -1) != 0:
+            print(f"Error {response.get('err')} while authenticating user: {response.get('desc')}")
             raise Exception(
                 f'ErrorAuthFailed'
             )
-        data = response['dat']
+        data = response.get('dat', {})
         return {
             'token': data['token'],
             'secret': data['secret'],
@@ -75,15 +94,16 @@ async def create_auth_api_request(token, secret, params, raise_error=True):
             # print(payload)
             params_path = urllib.parse.urlencode(payload, doseq=False, safe="@")
             url = f'https://{DOMAIN_BASE_URL}/public/?{params_path}'
-            json = (await (await session.get(url, headers=headers)).json())
-            if json['err'] == 0:
-                return json['dat']
+            json = await _request_with_backoff(session, url, headers)
+            err_code = json.get('err', -1)
+            if err_code == 0:
+                return json.get('dat', {})
             else:
                 if raise_error:
-                    if json['err'] == 10:
+                    if err_code == 10:
                         raise AuthInvalidateError
                     raise Exception(
-                        f'Error {json["err"]} while creating auth api request: {json["desc"]}'
+                        f"Error {err_code} while creating auth api request: {json.get('desc', 'Unknown')}"
                     )
                 else:
                     return json
@@ -100,13 +120,14 @@ async def create_auth_api_remote_request(token, secret, params, raise_error=True
             # print(payload)
             params_path = urllib.parse.urlencode(payload, doseq=False, safe="@")
             url = f'https://{DOMAIN_BASE_URL}/remote/?{params_path}'
-            json = (await (await session.get(url, headers=headers)).json())
-            if json['err'] == 0:
-                return json['dat']
+            json = await _request_with_backoff(session, url, headers)
+            err_code = json.get('err', -1)
+            if err_code == 0:
+                return json.get('dat', {})
             else:
                 if raise_error:
                     raise Exception(
-                        f'Error {json["err"]} while creating auth api request: {json["desc"]}'
+                        f"Error {err_code} while creating auth api request: {json.get('desc', 'Unknown')}"
                     )
                 else:
                     return json
