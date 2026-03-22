@@ -83,7 +83,7 @@ class NumberBase(CoordinatorEntity, NumberEntity):
     @property
     def available(self) -> bool:
         """Return True if inverter_device and hub is available."""
-        return self._inverter_device.online and self._inverter_device.hub.online
+        return self._inverter_device.online and self._inverter_device.hub.online and not getattr(self, '_disabled_param', False)
 
     @property
     def data(self):
@@ -102,7 +102,8 @@ class NumberBase(CoordinatorEntity, NumberEntity):
 
 class InverterDynamicSettingNumber(NumberBase):
     _attr_native_value = None
-    should_poll = True
+    should_poll = False
+    _disabled_param = False
     _attr_entity_category = EntityCategory.CONFIG
 
     # _attr_entity_category = EntityCategory.CONFIG
@@ -125,33 +126,32 @@ class InverterDynamicSettingNumber(NumberBase):
     def _scan_interval_seconds(self):
         return self.coordinator.config_entry.options.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL)
 
-    # async def async_added_to_hass(self) -> None:
-    #     """Handle entity which will be added."""
-    #
-    #     if (last_sensor_data := await self.async_get_last_extra_data()) is not None:
-    #         # print('last_sensor_data', last_sensor_data.as_dict())
-    #         self._attr_current_option = (last_sensor_data.as_dict())['native_value']
-    #     else:
-    #         self._attr_current_option = None
-    #     # await self.async_update()
-    #     await super().async_added_to_hass()
+    from homeassistant.core import callback
 
-    async def async_update(self):
-        now = int(datetime.now().timestamp())
-        if self._last_updated is not None and now - self._last_updated < self._scan_interval_seconds:
+    @callback
+    def _handle_coordinator_update(self) -> None:
+        """Handle updated data from the coordinator."""
+        if not self.coordinator.last_update_success:
             return
 
-        if self.coordinator.auth['token'] is not None:
-            response = await get_device_ctrl_value(self.coordinator.auth['token'],
-                                                   self.coordinator.auth['secret'],
-                                                   self._inverter_device.device_data,
-                                                   self._service_param_id)
-            if 'err' not in response:
-                self._attr_native_value = resolve_number_with_unit(response['val'])
-                self._last_updated = now
-                self.async_write_ha_state()
+        data = self.coordinator.data.get(self._inverter_device.inverter_id)
+        if not data:
+            return
+
+        fields = data.get('ctrl_fields', [])
+        field_data = next((f for f in fields if f.get('id') == self._service_param_id), None)
+
+        if field_data:
+            val = field_data.get('val')
+            if val is not None:
+                self._attr_native_value = resolve_number_with_unit(val)
+                self._disabled_param = False
             else:
-                print('get_device_ctrl_value', self._inverter_device.name, self._service_param_id, response)
+                self._disabled_param = True
+        else:
+            self._disabled_param = True
+
+        self.async_write_ha_state()
 
     async def async_set_native_value(self, value: float) -> None:
         """Update the current value."""

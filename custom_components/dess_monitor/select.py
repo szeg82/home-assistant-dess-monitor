@@ -139,7 +139,7 @@ class InverterDynamicSettingSelect(SelectBase):
     _attr_current_option = None
     _last_updated = None
     _disabled_param = False
-    should_poll = True
+    should_poll = False
     _attr_entity_category = EntityCategory.CONFIG
 
     def __init__(self, inverter_device: InverterDevice, coordinator: MainCoordinator, field_data):
@@ -171,35 +171,33 @@ class InverterDynamicSettingSelect(SelectBase):
     #     # await self.async_update()
     #     await super().async_added_to_hass()
 
-    async def async_update(self, force=False):
-        now = int(datetime.now().timestamp())
-        if not force and self._last_updated is not None and now - self._last_updated < self._scan_interval_seconds:
+    @callback
+    def _handle_coordinator_update(self) -> None:
+        """Handle updated data from the coordinator."""
+        if not self.coordinator.last_update_success:
             return
 
-        if self.coordinator.auth['token'] is not None:
-            response = await get_device_ctrl_value(self.coordinator.auth['token'],
-                                                   self.coordinator.auth['secret'],
-                                                   self._inverter_device.device_data,
-                                                   self._service_param_id)
+        data = self.coordinator.data.get(self._inverter_device.inverter_id)
+        if not data:
+            return
 
-            if 'err' not in response:
-                val = response['val'] if 'unit' not in self._field_data else str(
-                    resolve_number_with_unit(response['val']))
-                mapped_list = list(map(lambda x: x.lower(), self._attr_options))
-                try:
-                    index = mapped_list.index(val.lower())
-                    real_val = self._attr_options[index]
-                    self._attr_current_option = real_val
-                    self._last_updated = now
-                    self.async_write_ha_state()
-                except ValueError:
-                    if self._last_updated is None:
-                        self._disabled_param = True
-                    self._last_updated = now
-            else:
-                if self._last_updated is None:
-                    self._disabled_param = True
-                # print('get_device_ctrl_value', self._inverter_device.name, self._service_param_id, response)
+        fields = data.get('ctrl_fields', [])
+        field_data = next((f for f in fields if f.get('id') == self._service_param_id), None)
+
+        if field_data and 'val' in field_data:
+            val = field_data['val']
+            val_to_search = val if 'unit' not in self._field_data else str(resolve_number_with_unit(val))
+            mapped_list = [x.lower() for x in self._attr_options]
+            try:
+                idx = mapped_list.index(val_to_search.lower())
+                self._attr_current_option = self._attr_options[idx]
+                self._disabled_param = False
+            except ValueError:
+                self._disabled_param = True
+        else:
+            self._disabled_param = True
+
+        self.async_write_ha_state()
 
     @property
     def available(self) -> bool:
